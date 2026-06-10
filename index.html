@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta charset="utf-8">
+        <meta name="keywords" content="tetris">
+        <title>Zaktris</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Fira+Sans:wght@400;700">
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+        <main>
+            <div id="title_screen">
+                <div id="title_bg">
+                    <p class="title_text">
+                        ZAKTRIS
+                    </p>
+                </div>
+
+                <button id="new_game" class="menu_button">
+                    NEW GAME
+                </button>
+                <button id="controls" class="menu_button">
+                    CONTROLS
+                </button>
+                <button id="highscores" class="menu_button">
+                    HIGHSCORES
+                </button>
+            </div>
+            <div id="controls_screen">
+                <p class="title_text">
+                    CONTROLS
+                </p>
+
+                <div id="arr_block" class="option">
+                    <div class="slider_name">
+                        <p class="option_text2">
+                            ARR:
+                        </p>
+                    </div>
+                    <input type="range" id="arr" class="option_slider" min="0" max="5" step="0.1" value="2">
+                    <div class="slider_value">
+                        <div class="slider_text">
+                            <p class="option_text">
+                                <span id="arr_ms" class="number">33</span>ms
+                            </p>
+                        </div>
+                        <div class="slider_text2">
+                            <p class="option_text2">
+                                <span id="arr_frames" class="number">2</span>F
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="option">
+                    <div class="slider_name">
+                        <p class="option_text2">
+                            DAS:
+                        </p>
+                    </div>
+                    <input type="range" id="das" class="option_slider" min="1" max="20" step="0.1" value="10">
+                    <div class="slider_value">
+                        <div class="slider_text">
+                            <p class="option_text">
+                                <span id="das_ms" class="number">167</span>ms
+                            </p>
+                        </div>
+                        <div class="slider_text2">
+                            <p class="option_text2">
+                                <span id="das_frames" class="number">10</span>F
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="option">
+                    <div class="slider_name">
+                        <p class="option_text2">
+                            DCD:
+                        </p>
+                    </div>
+                    <input type="range" id="dcd" class="option_slider" min="0" max="20" step="0.1" value="2">
+                    <div class="slider_value">
+                        <div class="slider_text">
+                            <p class="option_text">
+                                <span id="dcd_ms" class="number">33</span>ms
+                            </p>
+                        </div>
+                        <div class="slider_text2">
+                            <p class="option_text2">
+                                <span id="dcd_frames" class="number">2</span>F
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="option">
+                    <div class="slider_name">
+                        <p class="option_text2">
+                            SDF:
+                        </p>
+                    </div>
+                    <input type="range" id="sdf" class="option_slider" min="5" max="41" step="1" value="6">
+                    <div class="slider_text3">
+                        <p class="option_text2">
+                            <span id="sdf_mult" class="number">6</span><span id="sdf_symbol">X</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div id="move_left_block" class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            MOVE LEFT:
+                        </p>
+                    </div>
+                    <button id="move_left_keybind" class="option_button">
+                        ArrowLeft
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            MOVE RIGHT:
+                        </p>
+                    </div>
+                    <button id="move_right_keybind" class="option_button">
+                        ArrowRight
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            SOFT DROP:
+                        </p>
+                    </div>
+                    <button id="soft_drop_keybind" class="option_button">
+                        ArrowDown
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            HARD DROP:
+                        </p>
+                    </div>
+                    <button id="hard_drop_keybind" class="option_button">
+                        Space
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            SPIN LEFT:
+                        </p>
+                    </div>
+                    <button id="spin_left_keybind" class="option_button">
+                        KeyZ
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            SPIN RIGHT:
+                        </p>
+                    </div>
+                    <button id="spin_right_keybind" class="option_button">
+                        KeyX
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            SPIN 180:
+                        </p>
+                    </div>
+                    <button id="spin_180_keybind" class="option_button">
+                        KeyA
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            HOLD:
+                        </p>
+                    </div>
+                    <button id="hold_keybind" class="option_button">
+                        KeyC
+                    </button>
+                </div>
+                <div class="option">
+                    <div class="control_name">
+                        <p class="option_text">
+                            RESET:
+                        </p>
+                    </div>
+                    <button id="reset_keybind" class="option_button">
+                        KeyR
+                    </button>
+                </div>
+
+                <div class="horizontal_buttons">
+                    <button id="save" class="menu_button2">
+                        SAVE
+                    </button>
+                    <button id="back" class="menu_button2">
+                        BACK
+                    </button>
+                    <button id="reset" class="menu_button2">
+                        RESET
+                    </button>
+                </div>
+            </div>
+            <div id="highscores_screen">
+                <p class="title_text">
+                    HIGHSCORES
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th><th>SCORE</th><th>LINES</th><th>LEVEL</th><th>TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody id="highscores_body"></tbody>
+                </table>
+
+                <button id="back2" class="menu_button">
+                    BACK
+                </button>
+            </div>
+            <div id="game_screen">
+                <div id="left_panel" class="side_panel">
+                    <p id="hold_text" class="left_text">
+                        HOLD
+                    </p>
+                    <div id="hold"></div>
+                    <div id="score_panel">
+                        <p id="score_special" class="left_text">
+                            &nbsp;
+                        </p>
+                        <p id="score_text" class="left_text2">
+                            &nbsp;
+                        </p>
+                        <p id="score_value" class="left_text3">
+                            &nbsp;
+                        </p>
+                        <p id="combo_text" class="left_text">
+                            &nbsp;
+                        </p>
+                        <p id="combo_value" class="left_text3">
+                            &nbsp;
+                        </p>
+                    </div>
+                    <p id="level_text" class="left_text2">
+                        LEVEL <span id="level" class="number">1</span>
+                        <br>LINES <span id="lines" class="number">0</span>
+                        <br>SCORE <span id="score" class="number">0</span>
+                        <br>TIME <span id="time" class="number">0:00.00</span>
+                    </p>
+                </div>
+                <div id="game_panel">
+                    <div id="game_grid" class="status_idle">
+                        <div id="cell_wrapper"></div>
+                    </div>
+                    <div id="countdown_panel">
+                        <p id="countdown_text">
+                            3
+                        </p>
+                    </div>
+                    <div id="pc_panel">
+                        <p id="pc_text">
+                            ALL CLEAR!
+                        </p>
+                        <p id="pc_value">
+                            +800
+                        </p>
+                    </div>
+                </div>
+                <div id="right_panel" class="side_panel">
+                    <p class="right_text">
+                        NEXT
+                    </p>
+                    <div id="queue"></div>
+                    <button id="end" class="menu_button3">
+                        END
+                    </button>
+                </div>
+            </div>
+            <div id="paused_screen">
+                <p class="title_text">
+                    PAUSED
+                </p>
+
+                <button id="resume" class="menu_button">
+                    RESUME
+                </button>
+                <button id="restart" class="menu_button">
+                    RESTART
+                </button>
+                <button id="main_menu" class="menu_button">
+                    MAIN MENU
+                </button>
+            </div>
+            <div id="end_screen">
+                <p class="title_text">
+                    GAME OVER
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th><th>SCORE</th><th>LINES</th><th>LEVEL</th><th>TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody id="end_body"></tbody>
+                </table>
+
+                <div id="end_buttons" class="horizontal_buttons">
+                    <button id="new_game2" class="menu_button2">
+                        NEW GAME
+                    </button>
+                    <button id="main_menu2" class="menu_button2">
+                        MAIN MENU
+                    </button>
+                </div>
+            </div>
+        </main>
+        <script src="main.js" charset="utf-8" type="text/javascript"></script>
+    </body>
+</html>
