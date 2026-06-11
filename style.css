@@ -254,7 +254,7 @@ body {
     margin-top: 32px;
 }
 
-#move_left_block {
+#move_left_block, #cancel_das_block {
     margin-top: 48px;
 }
 
@@ -295,6 +295,38 @@ body {
 
 .option_button:hover {
     background-color: hsl(282, 50%, 60%);
+}
+
+.option_checkbox {
+    display: inline;
+    background-color: hsl(282, 50%, 50%);
+    width: 40px;
+    height: 40px;
+    font-family: "Fira Sans";
+    font-weight: bold;
+    font-size: 28px;
+    color: black;
+    box-shadow: 4px 4px black;
+    border: none;
+    cursor: pointer;
+    flex: 0;
+    flex-basis: auto;
+}
+
+.option_checkbox:hover {
+    background-color: hsl(282, 50%, 60%);
+}
+
+.checked {
+    background-color: hsl(282, 50%, 90%);
+}
+
+.checked:hover {
+    background-color: white;
+}
+
+.checkbox_name {
+    text-align: right;
 }
 
 .control_name {
