@@ -600,6 +600,12 @@ function collapse(grid, rows) {
 function tspin_type(piece, grid) {
     if (piece.type !== "t" || !game.spun) return "none"
 
+    const immobile =
+        !validate(piece.type, piece.rotation, piece.r - 1, piece.c, grid) &&
+        !validate(piece.type, piece.rotation, piece.r, piece.c - 1, grid) &&
+        !validate(piece.type, piece.rotation, piece.r, piece.c + 1, grid)
+    if (!immobile) return "none"
+
     const t_front = {
         0: [0, 1],
         1: [1, 3],
@@ -619,17 +625,10 @@ function tspin_type(piece, grid) {
         ([r, c]) => c < 0 || c >= 10 || r >= 30 || (r >= 0 && grid[r][c]),
     )
 
-    const total = occ.filter(Boolean).length
-    if (total < 3) return "none"
-
     const [f1, f2] = t_front[piece.rotation]
     const front_filled = (occ[f1] ? 1 : 0) + (occ[f2] ? 1 : 0)
 
     return front_filled === 2 ? "full" : "mini"
-
-    if (front_filled === 2) return "full"
-    if (game.last_kick) return "full"
-    return "mini"
 }
 
 function add_score(rows, tspin, color) {
