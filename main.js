@@ -9,6 +9,7 @@ let default_config = {
     sdf: 6,
     are: 8,
     line: 20,
+    cancel_das: false,
     move_left: "ArrowLeft",
     move_right: "ArrowRight",
     soft_drop: "ArrowDown",
@@ -1050,6 +1051,10 @@ function process_movement() {
     if (dir !== input.active_dir) {
         input.active_dir = dir
         if (dir) {
+            if (config.cancel_das) {
+                input.das_timer = 0
+                input.repeating = 0
+            }
             try_move(dir === "left" ? -1 : 1)
         } else {
             input.das_timer = 0
@@ -1398,6 +1403,15 @@ function load_controls(controls) {
         document.getElementById("sdf_symbol").innerHTML = "X"
     }
 
+    if (controls.cancel_das) {
+        document.getElementById("cancel_das").innerHTML = "✓"
+        document.getElementById("cancel_das").className =
+            "option_checkbox checked"
+    } else {
+        document.getElementById("cancel_das").innerHTML = ""
+        document.getElementById("cancel_das").className = "option_checkbox"
+    }
+
     for (const action of bindable) {
         if (controls[action] === null)
             document.getElementById(action + "_keybind").innerHTML = "None"
@@ -1674,6 +1688,19 @@ document.getElementById("sdf").addEventListener("input", () => {
     } else {
         document.getElementById("sdf_mult").innerHTML = draft_config.sdf
         document.getElementById("sdf_symbol").innerHTML = "X"
+    }
+})
+
+document.getElementById("cancel_das").addEventListener("click", () => {
+    if (draft_config.cancel_das) {
+        draft_config.cancel_das = false
+        document.getElementById("cancel_das").innerHTML = ""
+        document.getElementById("cancel_das").className = "option_checkbox"
+    } else {
+        draft_config.cancel_das = true
+        document.getElementById("cancel_das").innerHTML = "✓"
+        document.getElementById("cancel_das").className =
+            "option_checkbox checked"
     }
 })
 
