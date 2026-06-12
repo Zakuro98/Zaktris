@@ -493,6 +493,7 @@ td {
     justify-content: center;
     z-index: 3;
     opacity: 0;
+    overflow: visible;
 }
 
 #pc_text {
@@ -502,11 +503,21 @@ td {
     text-shadow: 4px 4px black;
     text-align: center;
     margin: 0px;
+    white-space: nowrap;
 }
 
 #pc_value {
     font-size: 36px;
     font-family: "Fira Code";
+    font-weight: bold;
+    color: white;
+    text-shadow: 4px 4px black;
+    text-align: center;
+    margin: 0px;
+}
+
+#pc_special {
+    font-size: 36px;
     font-weight: bold;
     color: white;
     text-shadow: 4px 4px black;
