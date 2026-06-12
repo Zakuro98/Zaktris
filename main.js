@@ -948,11 +948,13 @@ function pc_check(grid) {
 }
 
 function lock(piece, grid) {
+    let tspin = tspin_type(game.piece, game.grid)
+    let color = pieces[game.piece.type].color
+
     for (const [r, c] of active_cells(piece)) {
         grid[r][c] = piece.type
     }
-    let tspin = tspin_type(game.piece, game.grid)
-    let color = pieces[game.piece.type].color
+
     game.piece = null
     game.rows = full_rows(grid)
     if (game.rows.length > 0) {
