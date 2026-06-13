@@ -18,11 +18,20 @@
                     </p>
                 </div>
 
-                <button id="new_game" class="menu_button">
-                    NEW GAME
+                <button id="marathon" class="menu_button">
+                    MARATHON
+                </button>
+                <button id="endless" class="menu_button">
+                    ENDLESS
+                </button>
+                <button id="sprint" class="menu_button">
+                    SPRINT
+                </button>
+                <button id="ultra" class="menu_button">
+                    ULTRA
                 </button>
                 <button id="controls" class="menu_button">
-                    CONTROLS
+                    CONFIG
                 </button>
                 <button id="highscores" class="menu_button">
                     HIGHSCORES
@@ -30,7 +39,7 @@
             </div>
             <div id="controls_screen">
                 <p class="title_text">
-                    CONTROLS
+                    CONFIG
                 </p>
 
                 <div id="arr_block" class="option">
@@ -59,7 +68,7 @@
                             DAS:
                         </p>
                     </div>
-                    <input type="range" id="das" class="option_slider" min="1" max="20" step="0.1" value="10">
+                    <input type="range" id="das" class="option_slider" min="1" max="20" step="1" value="10">
                     <div class="slider_value">
                         <div class="slider_text">
                             <p class="option_text">
@@ -79,7 +88,7 @@
                             DCD:
                         </p>
                     </div>
-                    <input type="range" id="dcd" class="option_slider" min="0" max="20" step="0.1" value="2">
+                    <input type="range" id="dcd" class="option_slider" min="0" max="20" step="1" value="2">
                     <div class="slider_value">
                         <div class="slider_text">
                             <p class="option_text">
@@ -106,12 +115,68 @@
                         </p>
                     </div>
                 </div>
+                <div class="option">
+                    <div class="slider_name">
+                        <p class="option_text2">
+                            ARE:
+                        </p>
+                    </div>
+                    <input type="range" id="are" class="option_slider" min="0" max="20" step="1" value="8">
+                    <div class="slider_value">
+                        <div class="slider_text">
+                            <p class="option_text">
+                                <span id="are_ms" class="number">133</span>ms
+                            </p>
+                        </div>
+                        <div class="slider_text2">
+                            <p class="option_text2">
+                                <span id="are_frames" class="number">8</span>F
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="option">
+                    <div class="slider_name">
+                        <p class="option_text2">
+                            LCD:
+                        </p>
+                    </div>
+                    <input type="range" id="lcd" class="option_slider" min="0" max="60" step="1" value="20">
+                    <div class="slider_value">
+                        <div class="slider_text">
+                            <p class="option_text">
+                                <span id="lcd_ms" class="number">333</span>ms
+                            </p>
+                        </div>
+                        <div class="slider_text2">
+                            <p class="option_text2">
+                                <span id="lcd_frames" class="number">20</span>F
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
-                <div id="cancel_das_block" class="option">
+                <div id="hard_block_block" class="option">
+                    <button id="hard_block" class="option_checkbox"></button>
+                    <div class="checkbox_name">
+                        <p class="option_text">
+                            Prevent accidental hard drops
+                        </p>
+                    </div>
+                </div>
+                <div class="option">
                     <button id="cancel_das" class="option_checkbox"></button>
                     <div class="checkbox_name">
                         <p class="option_text">
                             Cancel DAS when changing directions
+                        </p>
+                    </div>
+                </div>
+                <div class="option">
+                    <button id="prefer_soft" class="option_checkbox"></button>
+                    <div class="checkbox_name">
+                        <p class="option_text">
+                            Prefer soft drop over movement
                         </p>
                     </div>
                 </div>
@@ -211,11 +276,11 @@
                     <button id="save" class="menu_button2">
                         SAVE
                     </button>
-                    <button id="back" class="menu_button2">
-                        BACK
-                    </button>
                     <button id="reset" class="menu_button2">
                         RESET
+                    </button>
+                    <button id="back" class="menu_button2">
+                        BACK
                     </button>
                 </div>
             </div>
@@ -225,7 +290,7 @@
                 </p>
 
                 <table>
-                    <thead>
+                    <thead id="highscores_head">
                         <tr>
                             <th></th><th>SCORE</th><th>LINES</th><th>LEVEL</th><th>TIME</th>
                         </tr>
@@ -233,9 +298,14 @@
                     <tbody id="highscores_body"></tbody>
                 </table>
 
-                <button id="back2" class="menu_button">
-                    BACK
-                </button>
+                <div class="horizontal_buttons">
+                    <button id="mode" class="menu_button2">
+                        MARATHON
+                    </button>
+                    <button id="back2" class="menu_button2">
+                        BACK
+                    </button>
+                </div>
             </div>
             <div id="game_screen">
                 <div id="left_panel" class="side_panel">
@@ -261,10 +331,10 @@
                         </p>
                     </div>
                     <p id="level_text" class="left_text2">
-                        LEVEL <span id="level" class="number">1</span>
-                        <br>LINES <span id="lines" class="number">0</span>
-                        <br>SCORE <span id="score" class="number">0</span>
-                        <br>TIME <span id="time" class="number">0:00.00</span>
+                        LEVEL <span class="number">1</span>
+                        <br>LINES <span class="number">0</span>
+                        <br>SCORE <span class="number">0</span>
+                        <br>TIME <span class="number">0.00s</span>
                     </p>
                 </div>
                 <div id="game_panel">
@@ -319,7 +389,7 @@
                 </p>
 
                 <table>
-                    <thead>
+                    <thead id="end_head">
                         <tr>
                             <th></th><th>SCORE</th><th>LINES</th><th>LEVEL</th><th>TIME</th>
                         </tr>
@@ -328,7 +398,7 @@
                 </table>
 
                 <div id="end_buttons" class="horizontal_buttons">
-                    <button id="new_game2" class="menu_button2">
+                    <button id="new_game" class="menu_button2">
                         NEW GAME
                     </button>
                     <button id="main_menu2" class="menu_button2">
