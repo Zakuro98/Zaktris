@@ -11,6 +11,11 @@ body {
     user-select: none;
 }
 
+main {
+    padding-top: 16px;
+    padding-bottom: 32px;
+}
+
 #game_screen {
     display: flex;
     width: 1288px;
@@ -199,7 +204,7 @@ body {
     background-color: hsl(282, 50%, 60%);
 }
 
-#new_game {
+#marathon {
     margin-top: 64px;
 }
 
@@ -254,7 +259,7 @@ body {
     margin-top: 32px;
 }
 
-#move_left_block, #cancel_das_block {
+#move_left_block, #hard_block_block {
     margin-top: 48px;
 }
 
@@ -431,6 +436,8 @@ body {
 table {
     border-collapse: collapse;
     margin-top: 32px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 th {
