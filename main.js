@@ -1,4 +1,5 @@
 let status = "title"
+let mode = "marathon"
 
 let game, input, config
 
@@ -10,6 +11,8 @@ let default_config = {
     are: 8,
     line: 20,
     cancel_das: false,
+    hard_block: false,
+    prefer_soft: true,
     move_left: "ArrowLeft",
     move_right: "ArrowRight",
     soft_drop: "ArrowDown",
@@ -25,6 +28,9 @@ const saved_config = localStorage.getItem("zaktris_config")
 if (saved_config) {
     try {
         config = JSON.parse(saved_config)
+        if (config.prefer_soft === undefined) config.prefer_soft = true
+        if (!Number.isInteger(config.das)) config.das = Math.ceil(config.das)
+        if (!Number.isInteger(config.dcd)) config.das = Math.ceil(config.dcd)
     } catch {
         console.warn("Invalid config data, loaded defaults.")
         config = { ...default_config }
@@ -57,10 +63,18 @@ function format_num(num) {
 }
 
 function format_time(time) {
-    let output = Math.floor(time / 3600) + ":"
-    let seconds = (time / 60) % 60
-    if (seconds >= 10) output += seconds.toFixed(2)
-    else output += "0" + seconds.toFixed(2)
+    let seconds = time / 60
+    let output = seconds.toFixed(2) + "s"
+
+    if (seconds >= 60) {
+        output = Math.floor(time / 3600) + ":"
+        seconds = (time / 60) % 60
+        if (seconds >= 10) output += seconds.toFixed(2)
+        else output += "0" + seconds.toFixed(2)
+    }
+
+    if (time >= 2 ** 53) output = "A very long time"
+
     return output
 }
 
@@ -91,16 +105,45 @@ for (let i = 0; i < 5; i++) {
     document.getElementById("queue").appendChild(next)
 }
 
-let highscores = new Array(10)
-for (let i = 0; i < 10; i++) {
-    highscores[i] = { score: 0, lines: 0, level: 1, time: 0 }
+function make_empty_highscores() {
+    const score_empty = () =>
+        Array.from({ length: 10 }, () => ({
+            score: 0,
+            lines: 0,
+            level: 1,
+            time: 0,
+        }))
+    const sprint_empty = () =>
+        Array.from({ length: 10 }, () => ({ time: 2 ** 53, pieces: 0, pps: 0 }))
+    const ultra_empty = () =>
+        Array.from({ length: 10 }, () => ({
+            score: 0,
+            lines: 0,
+            level: 1,
+        }))
+
+    return {
+        marathon: score_empty(),
+        endless: score_empty(),
+        sprint: sprint_empty(),
+        ultra: ultra_empty(),
+    }
 }
+
+let highscores = make_empty_highscores()
+
 const saved_highscores = localStorage.getItem("zaktris_highscores")
 if (saved_highscores) {
     try {
-        highscores = JSON.parse(saved_highscores)
+        const parsed = JSON.parse(saved_highscores)
+
+        if (Array.isArray(parsed)) {
+            highscores.endless = parsed
+        } else if (parsed && typeof parsed === "object") {
+            highscores = { ...make_empty_highscores(), ...parsed }
+        }
     } catch {
-        console.warn("Invalid highscore data, loaded empty highscore table.")
+        console.warn("Invalid highscore data, loaded empty highscore tables.")
     }
 }
 
@@ -817,6 +860,12 @@ function add_score(rows, tspin, color) {
         document.getElementById("combo_text").innerHTML = "&nbsp;"
         document.getElementById("combo_value").innerHTML = "&nbsp;"
     }
+
+    if (mode === "sprint") {
+        document.getElementById("score_value").innerHTML = "&nbsp;"
+        document.getElementById("combo_value").innerHTML = "&nbsp;"
+        document.getElementById("pc_value").innerHTML = ""
+    }
 }
 
 function spawn_next() {
@@ -889,27 +938,30 @@ function spawn_next() {
             game.grid,
         )
     ) {
-        game.over = true
+        game.over = "fail"
         game.piece = null
 
-        const entry = {
-            score: game.score,
-            lines: game.lines,
-            level: game.level,
-            time: game.time,
-            new: true,
-        }
-        highscores.push(entry)
-        highscores.sort((a, b) => b.score - a.score)
-        highscores.length = 10
+        if (mode === "marathon" || mode === "endless") {
+            let entry = {
+                score: game.score,
+                lines: game.lines,
+                level: game.level,
+                time: game.time,
+                new: true,
+            }
 
-        place = highscores.findIndex(e => e.new)
-        if (place !== -1) {
-            delete highscores[place].new
-            localStorage.setItem(
-                "zaktris_highscores",
-                JSON.stringify(highscores),
-            )
+            highscores[mode].push(entry)
+            highscores[mode].sort((a, b) => b.score - a.score)
+            highscores[mode].length = 10
+
+            place = highscores[mode].findIndex(e => e.new)
+            if (place !== -1) {
+                delete highscores[mode][place].new
+                localStorage.setItem(
+                    "zaktris_highscores",
+                    JSON.stringify(highscores),
+                )
+            }
         }
 
         document.getElementById("end").style.display = "block"
@@ -934,6 +986,7 @@ function lock(piece, grid) {
         grid[r][c] = piece.type
     }
 
+    game.pieces++
     game.piece = null
     game.rows = full_rows(grid)
     if (game.rows.length > 0) {
@@ -941,16 +994,105 @@ function lock(piece, grid) {
         game.lines += game.rows.length
         game.pc = pc_check(grid)
         add_score(game.rows.length, tspin, color)
-        game.level = Math.floor(game.lines / 10) + 1
+        switch (mode) {
+            case "marathon":
+                game.level = Math.min(Math.floor(game.lines / 10) + 1, 15)
+                break
+            case "endless":
+                game.level = Math.floor(game.lines / 10) + 1
+                break
+            case "ultra":
+                {
+                    let i = 1
+                    let cumulative = 0
+                    let step = 3
+                    while (true) {
+                        cumulative += step
+                        if (cumulative > game.lines) break
+
+                        i++
+                        step += i === 11 ? 3 : 2
+                    }
+                    game.level = i
+                }
+                break
+        }
+
+        if (mode === "marathon") {
+            if (game.lines >= 150) {
+                game.over = "win"
+                game.piece = null
+
+                let entry = {
+                    score: game.score,
+                    lines: game.lines,
+                    level: game.level,
+                    time: game.time,
+                    new: true,
+                }
+
+                highscores.marathon.push(entry)
+                highscores.marathon.sort((a, b) => b.score - a.score)
+                highscores.marathon.length = 10
+
+                place = highscores.marathon.findIndex(e => e.new)
+                if (place !== -1) {
+                    delete highscores.marathon[place].new
+                    localStorage.setItem(
+                        "zaktris_highscores",
+                        JSON.stringify(highscores),
+                    )
+                }
+
+                document.getElementById("end").style.display = "block"
+            }
+        } else if (mode === "sprint") {
+            if (game.lines >= 40) {
+                game.over = "win"
+                game.piece = null
+
+                let entry = {
+                    time: game.time,
+                    pieces: game.pieces,
+                    pps: (game.pieces * 60) / game.time,
+                    new: true,
+                }
+
+                highscores.sprint.push(entry)
+                highscores.sprint.sort((a, b) => a.time - b.time)
+                highscores.sprint.length = 10
+
+                place = highscores.sprint.findIndex(e => e.new)
+                if (place !== -1) {
+                    delete highscores.sprint[place].new
+                    localStorage.setItem(
+                        "zaktris_highscores",
+                        JSON.stringify(highscores),
+                    )
+                }
+
+                document.getElementById("end").style.display = "block"
+            }
+        }
+
         game.action = "line"
-        game.next_timer = config.line
+        if (config.line === 0) {
+            collapse(game.grid, game.rows)
+            if (!game.over) spawn_next()
+        } else {
+            game.next_timer = config.line
+        }
     } else {
         game.combo = 0
         if (tspin !== "none") {
             add_score(0, tspin, color)
         }
         game.action = "are"
-        game.next_timer = config.are
+        if (config.are === 0) {
+            spawn_next()
+        } else {
+            game.next_timer = config.are
+        }
     }
 }
 
@@ -1025,7 +1167,12 @@ function active_direction() {
 
 function process_movement() {
     let spr = (0.8 - (game.level - 1) * 0.007) ** (game.level - 1)
-    if (input.soft_drop && !game.ground && (spr * 60) / config.sdf < config.arr)
+    if (
+        input.soft_drop &&
+        config.prefer_soft &&
+        !game.ground &&
+        (spr * 60) / config.sdf < config.arr
+    )
         return
     const dir = active_direction()
 
@@ -1113,116 +1260,170 @@ function tick() {
         game.score_timer ** 0.5 * -1 + "px"
 
     if (game.over) {
-        for (let i = 10; i < 30; i++) {
-            for (let j = 0; j < 10; j++) {
-                if (game.grid[i][j]) {
-                    let cell = document.getElementById("cell_r" + i + "c" + j)
-                    cell.style.backgroundColor = "hsl(282, 16%, 50%)"
+        document.getElementById("pc_panel").style.opacity = 1
+        document.getElementById("pc_text").style.letterSpacing = "normal"
+        document.getElementById("pc_text").style.marginRight = "0px"
+        document.getElementById("pc_special").innerHTML = ""
+        document.getElementById("pc_value").innerHTML = ""
+        if (game.over === "fail") {
+            document.getElementById("pc_text").innerHTML = "GAME OVER"
+            for (let i = 10; i < 30; i++) {
+                for (let j = 0; j < 10; j++) {
+                    if (game.grid[i][j]) {
+                        let cell = document.getElementById(
+                            "cell_r" + i + "c" + j,
+                        )
+                        cell.style.backgroundColor = "hsl(282, 16%, 50%)"
+                    }
                 }
             }
-        }
-        return
-    }
-
-    game.time++
-
-    process_movement()
-
-    if (input.spin !== 0) {
-        if (game.piece) {
-            srs(game.piece, input.spin, game.grid)
-        } else {
-            game.irs = input.spin
-        }
-        input.spin = 0
-    }
-
-    if (input.hard_drop) {
-        input.hard_drop = false
-        if (game.piece) {
-            let start_r = game.piece.r
-            game.piece.r = drop_row(game.piece, game.grid)
-            let distance = game.piece.r - start_r
-            game.score += 2 * distance
-            if (distance > 0) game.spun = false
-            lock(game.piece, game.grid)
-            game.ground = false
-            game.lock_timer = 0
-            game.lock_resets = reset_count()
+            return
+        } else if (game.over === "win") {
+            document.getElementById("pc_text").innerHTML = "FINISH!"
         }
     }
 
-    if (input.hold) {
-        input.hold = false
-        if (game.piece && !game.held) {
-            let current_type = game.piece.type
+    if (!game.over) {
+        game.time++
+        if (mode === "ultra") {
+            if (game.time >= 7200) {
+                game.over = "win"
 
-            if (game.hold === null) {
-                game.hold = current_type
-                spawn_next()
+                let entry = {
+                    score: game.score,
+                    lines: game.lines,
+                    level: game.level,
+                    new: true,
+                }
+
+                highscores.ultra.push(entry)
+                highscores.ultra.sort((a, b) => b.score - a.score)
+                highscores.ultra.length = 10
+
+                place = highscores.ultra.findIndex(e => e.new)
+                if (place !== -1) {
+                    delete highscores.ultra[place].new
+                    localStorage.setItem(
+                        "zaktris_highscores",
+                        JSON.stringify(highscores),
+                    )
+                }
+
+                document.getElementById("end").style.display = "block"
+                return
+            }
+        }
+
+        process_movement()
+
+        if (input.spin !== 0) {
+            if (game.piece) {
+                srs(game.piece, input.spin, game.grid)
             } else {
-                let held_type = game.hold
-                game.hold = current_type
-                game.piece = {
-                    type: held_type,
-                    rotation: 0,
-                    r: 8,
-                    c: 3,
-                }
+                game.irs = input.spin
             }
-
-            game.held = true
-            document.getElementById("hold").style.backgroundImage =
-                `url(hold/${game.hold}.png)`
-        } else if (!game.piece) {
-            game.ihs = true
-        }
-    }
-
-    if (game.next_timer > 0) {
-        game.next_timer--
-
-        if (game.next_timer === 0) {
-            if (game.action === "line") collapse(game.grid, game.rows)
-            spawn_next()
-        }
-    }
-
-    if (game.piece) {
-        let spr = (0.8 - (game.level - 1) * 0.007) ** (game.level - 1)
-        if (input.soft_drop) {
-            if (config.sdf === 41) game.gravity += Infinity
-            else game.gravity += config.sdf / (spr * 60)
-        } else game.gravity += 1 / (spr * 60)
-        while (game.gravity >= 1) {
-            game.gravity--
-            if (
-                validate(
-                    game.piece.type,
-                    game.piece.rotation,
-                    game.piece.r + 1,
-                    game.piece.c,
-                    game.grid,
-                )
-            ) {
-                game.piece.r++
-                if (input.soft_drop) game.score++
-                game.spun = false
-                game.ground = false
-            } else {
-                game.gravity = 0
-                if (!game.ground) {
-                    game.ground = true
-                    game.lock_timer = lock_time()
-                }
-                break
-            }
+            input.spin = 0
         }
 
-        if (game.ground) {
-            game.lock_timer--
-            if (game.lock_timer <= 0) {
+        if (input.hard_drop) {
+            input.hard_drop = false
+            if (game.piece && !game.block_timer) {
+                let start_r = game.piece.r
+                game.piece.r = drop_row(game.piece, game.grid)
+                let distance = game.piece.r - start_r
+                game.score += 2 * distance
+                if (distance > 0) game.spun = false
                 lock(game.piece, game.grid)
+                game.ground = false
+                game.lock_timer = 0
+                game.lock_resets = reset_count()
+            }
+        }
+        if (game.block_timer > 0) game.block_timer--
+
+        if (input.hold) {
+            input.hold = false
+            if (game.piece && !game.held) {
+                let current_type = game.piece.type
+
+                if (game.hold === null) {
+                    game.hold = current_type
+                    spawn_next()
+                } else {
+                    let held_type = game.hold
+                    game.hold = current_type
+                    game.piece = {
+                        type: held_type,
+                        rotation: 0,
+                        r: 8,
+                        c: 3,
+                    }
+                }
+
+                game.held = true
+                document.getElementById("hold").style.backgroundImage =
+                    `url(hold/${game.hold}.png)`
+            } else if (!game.piece) {
+                game.ihs = true
+            }
+        }
+
+        if (game.next_timer > 0) {
+            game.next_timer--
+
+            if (game.next_timer === 0) {
+                if (game.action === "line") collapse(game.grid, game.rows)
+                spawn_next()
+            }
+        }
+
+        if (game.piece) {
+            let spr = (0.8 - (game.level - 1) * 0.007) ** (game.level - 1)
+            if (input.soft_drop) {
+                if (config.sdf === 41) game.gravity += Infinity
+                else game.gravity += config.sdf / (spr * 60)
+            } else game.gravity += 1 / (spr * 60)
+            while (game.gravity >= 1) {
+                game.gravity--
+                if (
+                    validate(
+                        game.piece.type,
+                        game.piece.rotation,
+                        game.piece.r + 1,
+                        game.piece.c,
+                        game.grid,
+                    )
+                ) {
+                    game.piece.r++
+                    if (input.soft_drop) game.score++
+                    game.spun = false
+                    game.ground = false
+                } else {
+                    game.gravity = 0
+                    if (!game.ground) {
+                        game.ground = true
+                        game.lock_timer = lock_time()
+                    }
+                    break
+                }
+            }
+
+            if (game.ground) {
+                game.lock_timer--
+                if (game.lock_timer <= 0) {
+                    lock(game.piece, game.grid)
+                    if (config.hard_block) game.block_timer = 2
+                }
+            }
+        }
+    }
+
+    if (game.over === "win") {
+        if (game.next_timer > 0 && game.action === "line") {
+            game.next_timer--
+
+            if (game.next_timer === 0) {
+                collapse(game.grid, game.rows)
             }
         }
     }
@@ -1256,18 +1457,79 @@ function tick() {
         }
     }
 
-    document.getElementById("level").innerHTML = format_num(game.level)
-    document.getElementById("lines").innerHTML = format_num(game.lines)
-    document.getElementById("score").innerHTML = format_num(game.score)
-    document.getElementById("time").innerHTML = format_time(game.time)
+    switch (mode) {
+        case "marathon":
+            document.getElementById("level_text").innerHTML =
+                'LEVEL <span class="number">' +
+                format_num(game.level) +
+                "</span>" +
+                '<br>LINES <span class="number">' +
+                format_num(game.lines) +
+                " / 150</span>" +
+                '<br>SCORE <span class="number">' +
+                format_num(game.score) +
+                "</span>" +
+                '<br>TIME <span class="number">' +
+                format_time(game.time) +
+                "</span>"
+            break
+        case "endless":
+            document.getElementById("level_text").innerHTML =
+                'LEVEL <span class="number">' +
+                format_num(game.level) +
+                "</span>" +
+                '<br>LINES <span class="number">' +
+                format_num(game.lines) +
+                "</span>" +
+                '<br>SCORE <span class="number">' +
+                format_num(game.score) +
+                "</span>" +
+                '<br>TIME <span class="number">' +
+                format_time(game.time) +
+                "</span>"
+            break
+        case "sprint":
+            if (game.time > 0)
+                document.getElementById("level_text").innerHTML =
+                    'LINES <span class="number">' +
+                    format_num(game.lines) +
+                    " / 40</span>" +
+                    '<br>TIME <span class="number">' +
+                    format_time(game.time) +
+                    "</span>" +
+                    '<br>PIECES <span class="number">' +
+                    format_num(game.pieces) +
+                    "</span>" +
+                    '<br>PPS <span class="number">' +
+                    ((60 * game.pieces) / game.time).toFixed(2) +
+                    "</span>"
+            break
+        case "ultra":
+            document.getElementById("level_text").innerHTML =
+                'LEVEL <span class="number">' +
+                format_num(game.level) +
+                "</span>" +
+                '<br>LINES <span class="number">' +
+                format_num(game.lines) +
+                "</span>" +
+                '<br>SCORE <span class="number">' +
+                format_num(game.score) +
+                "</span>" +
+                '<br>TIME <span class="number">' +
+                format_time(7200 - game.time) +
+                "</span>"
+            break
+    }
 
-    if (input.reset) {
-        input.reset_timer++
-        if (input.reset_timer >= 60) {
-            init_game()
+    if (!game.over) {
+        if (input.reset) {
+            input.reset_timer++
+            if (input.reset_timer >= 60) {
+                init_game()
+            }
+        } else {
+            input.reset_timer = 0
         }
-    } else {
-        input.reset_timer = 0
     }
 }
 
@@ -1276,9 +1538,10 @@ function init_game() {
 
     game = {
         level: 1,
+        pieces: 0,
         lines: 0,
         time: 0,
-        over: false,
+        over: "",
 
         score: 0,
         combo: 0,
@@ -1302,6 +1565,7 @@ function init_game() {
         ground: false,
         lock_timer: 0,
         lock_resets: 15,
+        block_timer: 0,
 
         grid: new Array(30),
 
@@ -1339,11 +1603,38 @@ function init_game() {
     document.getElementById("score_value").innerHTML = "&nbsp;"
     document.getElementById("combo_text").innerHTML = "&nbsp;"
     document.getElementById("combo_value").innerHTML = "&nbsp;"
+    document.getElementById("pc_panel").style.opacity = 0
 
-    document.getElementById("level").innerHTML = "1"
-    document.getElementById("lines").innerHTML = "0"
-    document.getElementById("score").innerHTML = "0"
-    document.getElementById("time").innerHTML = "0:00.00"
+    switch (mode) {
+        case "marathon":
+            document.getElementById("level_text").innerHTML =
+                'LEVEL <span class="number">1</span>' +
+                '<br>LINES <span class="number">0 / 150</span>' +
+                '<br>SCORE <span class="number">0</span>' +
+                '<br>TIME <span class="number">0.00s</span>'
+            break
+        case "endless":
+            document.getElementById("level_text").innerHTML =
+                'LEVEL <span class="number">1</span>' +
+                '<br>LINES <span class="number">0</span>' +
+                '<br>SCORE <span class="number">0</span>' +
+                '<br>TIME <span class="number">0.00s</span>'
+            break
+        case "sprint":
+            document.getElementById("level_text").innerHTML =
+                'LINES <span class="number">0 / 40</span>' +
+                '<br>TIME <span class="number">0.00s</span>' +
+                '<br>PIECES <span class="number">0</span>' +
+                '<br>PPS <span class="number">0.00</span>'
+            break
+        case "ultra":
+            document.getElementById("level_text").innerHTML =
+                'LEVEL <span class="number">1</span>' +
+                '<br>LINES <span class="number">0</span>' +
+                '<br>SCORE <span class="number">0</span>' +
+                '<br>TIME <span class="number">2:00.00</span>'
+            break
+    }
 
     document.getElementById("hold").style.backgroundImage = "none"
 
@@ -1388,6 +1679,18 @@ function load_controls(controls) {
         document.getElementById("sdf_symbol").innerHTML = "X"
     }
 
+    document.getElementById("are").value = controls.are
+    document.getElementById("are_frames").innerHTML = controls.are
+    document.getElementById("are_ms").innerHTML = Math.round(
+        (controls.are * 1000) / 60,
+    )
+
+    document.getElementById("lcd").value = controls.line
+    document.getElementById("lcd_frames").innerHTML = controls.line
+    document.getElementById("lcd_ms").innerHTML = Math.round(
+        (controls.line * 1000) / 60,
+    )
+
     if (controls.cancel_das) {
         document.getElementById("cancel_das").innerHTML = "✓"
         document.getElementById("cancel_das").className =
@@ -1395,6 +1698,22 @@ function load_controls(controls) {
     } else {
         document.getElementById("cancel_das").innerHTML = ""
         document.getElementById("cancel_das").className = "option_checkbox"
+    }
+    if (controls.hard_block) {
+        document.getElementById("hard_block").innerHTML = "✓"
+        document.getElementById("hard_block").className =
+            "option_checkbox checked"
+    } else {
+        document.getElementById("hard_block").innerHTML = ""
+        document.getElementById("hard_block").className = "option_checkbox"
+    }
+    if (controls.prefer_soft) {
+        document.getElementById("prefer_soft").innerHTML = "✓"
+        document.getElementById("prefer_soft").className =
+            "option_checkbox checked"
+    } else {
+        document.getElementById("prefer_soft").innerHTML = ""
+        document.getElementById("prefer_soft").className = "option_checkbox"
     }
 
     for (const action of bindable) {
@@ -1612,7 +1931,29 @@ document.getElementById("main_menu").addEventListener("click", () => {
     document.getElementById("paused_screen").style.display = "none"
 })
 
-document.getElementById("new_game").addEventListener("click", () => {
+document.getElementById("marathon").addEventListener("click", () => {
+    mode = "marathon"
+    init_game()
+    document.getElementById("game_screen").style.display = "flex"
+    document.getElementById("title_screen").style.display = "none"
+})
+
+document.getElementById("endless").addEventListener("click", () => {
+    mode = "endless"
+    init_game()
+    document.getElementById("game_screen").style.display = "flex"
+    document.getElementById("title_screen").style.display = "none"
+})
+
+document.getElementById("sprint").addEventListener("click", () => {
+    mode = "sprint"
+    init_game()
+    document.getElementById("game_screen").style.display = "flex"
+    document.getElementById("title_screen").style.display = "none"
+})
+
+document.getElementById("ultra").addEventListener("click", () => {
+    mode = "ultra"
     init_game()
     document.getElementById("game_screen").style.display = "flex"
     document.getElementById("title_screen").style.display = "none"
@@ -1676,6 +2017,22 @@ document.getElementById("sdf").addEventListener("input", () => {
     }
 })
 
+document.getElementById("are").addEventListener("input", () => {
+    draft_config.are = Number(document.getElementById("are").value)
+    document.getElementById("are_frames").innerHTML = draft_config.are
+    document.getElementById("are_ms").innerHTML = Math.round(
+        (draft_config.are * 1000) / 60,
+    )
+})
+
+document.getElementById("lcd").addEventListener("input", () => {
+    draft_config.line = Number(document.getElementById("lcd").value)
+    document.getElementById("lcd_frames").innerHTML = draft_config.line
+    document.getElementById("lcd_ms").innerHTML = Math.round(
+        (draft_config.line * 1000) / 60,
+    )
+})
+
 document.getElementById("cancel_das").addEventListener("click", () => {
     if (draft_config.cancel_das) {
         draft_config.cancel_das = false
@@ -1689,6 +2046,32 @@ document.getElementById("cancel_das").addEventListener("click", () => {
     }
 })
 
+document.getElementById("hard_block").addEventListener("click", () => {
+    if (draft_config.hard_block) {
+        draft_config.hard_block = false
+        document.getElementById("hard_block").innerHTML = ""
+        document.getElementById("hard_block").className = "option_checkbox"
+    } else {
+        draft_config.hard_block = true
+        document.getElementById("hard_block").innerHTML = "✓"
+        document.getElementById("hard_block").className =
+            "option_checkbox checked"
+    }
+})
+
+document.getElementById("prefer_soft").addEventListener("click", () => {
+    if (draft_config.prefer_soft) {
+        draft_config.prefer_soft = false
+        document.getElementById("prefer_soft").innerHTML = ""
+        document.getElementById("prefer_soft").className = "option_checkbox"
+    } else {
+        draft_config.prefer_soft = true
+        document.getElementById("prefer_soft").innerHTML = "✓"
+        document.getElementById("prefer_soft").className =
+            "option_checkbox checked"
+    }
+})
+
 for (const action of bindable) {
     document
         .getElementById(action + "_keybind")
@@ -1697,70 +2080,203 @@ for (const action of bindable) {
         })
 }
 
+function load_highscores(mode, place) {
+    let output = ""
+    if (mode === "sprint") {
+        for (let i = 0; i < 10; i++) {
+            if (highscores[mode][i].time >= 2 ** 53) {
+                let str =
+                    "<tr>" +
+                    "<td>#" +
+                    (i + 1) +
+                    "</td>" +
+                    "<td>-</td>" +
+                    "<td>-</td>" +
+                    "<td>-</td>" +
+                    "</tr>"
+                output += str
+            } else if (place === i) {
+                let str =
+                    "<tr>" +
+                    '<td class="place">#' +
+                    (i + 1) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_time(highscores[mode][i].time) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_num(highscores[mode][i].pieces) +
+                    "</td>" +
+                    '<td class="place">' +
+                    highscores[mode][i].pps.toFixed(2) +
+                    "</td>" +
+                    "</tr>"
+                output += str
+            } else {
+                let str =
+                    "<tr>" +
+                    "<td>#" +
+                    (i + 1) +
+                    "</td>" +
+                    "<td>" +
+                    format_time(highscores[mode][i].time) +
+                    "</td>" +
+                    "<td>" +
+                    format_num(highscores[mode][i].pieces) +
+                    "</td>" +
+                    "<td>" +
+                    highscores[mode][i].pps.toFixed(2) +
+                    "</td>" +
+                    "</tr>"
+                output += str
+            }
+        }
+    } else if (mode === "ultra") {
+        for (let i = 0; i < 10; i++) {
+            if (highscores[mode][i].time === 0) {
+                let str =
+                    "<tr>" +
+                    "<td>#" +
+                    (i + 1) +
+                    "</td>" +
+                    "<td>-</td>" +
+                    "<td>-</td>" +
+                    "<td>-</td>" +
+                    "</tr>"
+                output += str
+            } else if (place === i) {
+                let str =
+                    "<tr>" +
+                    '<td class="place">#' +
+                    (i + 1) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_num(highscores[mode][i].score) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_num(highscores[mode][i].lines) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_num(highscores[mode][i].level) +
+                    "</td>" +
+                    "</tr>"
+                output += str
+            } else {
+                let str =
+                    "<tr>" +
+                    "<td>#" +
+                    (i + 1) +
+                    "</td>" +
+                    "<td>" +
+                    format_num(highscores[mode][i].score) +
+                    "</td>" +
+                    "<td>" +
+                    format_num(highscores[mode][i].lines) +
+                    "</td>" +
+                    "<td>" +
+                    format_num(highscores[mode][i].level) +
+                    "</td>" +
+                    "</tr>"
+                output += str
+            }
+        }
+    } else {
+        for (let i = 0; i < 10; i++) {
+            if (highscores[mode][i].time === 0) {
+                let str =
+                    "<tr>" +
+                    "<td>#" +
+                    (i + 1) +
+                    "</td>" +
+                    "<td>-</td>" +
+                    "<td>-</td>" +
+                    "<td>-</td>" +
+                    "<td>-</td>" +
+                    "</tr>"
+                output += str
+            } else if (place === i) {
+                let str =
+                    "<tr>" +
+                    '<td class="place">#' +
+                    (i + 1) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_num(highscores[mode][i].score) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_num(highscores[mode][i].lines) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_num(highscores[mode][i].level) +
+                    "</td>" +
+                    '<td class="place">' +
+                    format_time(highscores[mode][i].time) +
+                    "</td>" +
+                    "</tr>"
+                output += str
+            } else {
+                let str =
+                    "<tr>" +
+                    "<td>#" +
+                    (i + 1) +
+                    "</td>" +
+                    "<td>" +
+                    format_num(highscores[mode][i].score) +
+                    "</td>" +
+                    "<td>" +
+                    format_num(highscores[mode][i].lines) +
+                    "</td>" +
+                    "<td>" +
+                    format_num(highscores[mode][i].level) +
+                    "</td>" +
+                    "<td>" +
+                    format_time(highscores[mode][i].time) +
+                    "</td>" +
+                    "</tr>"
+                output += str
+            }
+        }
+    }
+
+    return output
+}
+
 document.getElementById("end").addEventListener("click", () => {
     status = "end"
     document.getElementById("end_screen").style.display = "block"
     document.getElementById("game_screen").style.display = "none"
 
-    document.getElementById("end_body").innerHTML = ""
-    for (let i = 0; i < 10; i++) {
-        if (highscores[i].time === 0) {
-            let str =
-                "<tr>" +
-                "<td>#" +
-                (i + 1) +
-                "</td>" +
-                "<td>-</td>" +
-                "<td>-</td>" +
-                "<td>-</td>" +
-                "<td>-</td>" +
-                "</tr>"
-            document.getElementById("end_body").innerHTML += str
-        } else if (place === i) {
-            let str =
-                "<tr>" +
-                '<td class="place">#' +
-                (i + 1) +
-                "</td>" +
-                '<td class="place">' +
-                format_num(highscores[i].score) +
-                "</td>" +
-                '<td class="place">' +
-                format_num(highscores[i].lines) +
-                "</td>" +
-                '<td class="place">' +
-                format_num(highscores[i].level) +
-                "</td>" +
-                '<td class="place">' +
-                format_time(highscores[i].time) +
-                "</td>" +
-                "</tr>"
-            document.getElementById("end_body").innerHTML += str
-        } else {
-            let str =
-                "<tr>" +
-                "<td>#" +
-                (i + 1) +
-                "</td>" +
-                "<td>" +
-                format_num(highscores[i].score) +
-                "</td>" +
-                "<td>" +
-                format_num(highscores[i].lines) +
-                "</td>" +
-                "<td>" +
-                format_num(highscores[i].level) +
-                "</td>" +
-                "<td>" +
-                format_time(highscores[i].time) +
-                "</td>" +
-                "</tr>"
-            document.getElementById("end_body").innerHTML += str
-        }
+    if (mode === "sprint") {
+        document.getElementById("end_head").innerHTML =
+            "<tr>" +
+            "<td></td>" +
+            "<td>TIME</td>" +
+            "<td>PIECES</td>" +
+            "<td>PPS</td>" +
+            "</tr>"
+    } else if (mode === "ultra") {
+        document.getElementById("end_head").innerHTML =
+            "<tr>" +
+            "<td></td>" +
+            "<td>SCORE</td>" +
+            "<td>LINES</td>" +
+            "<td>LEVEL</td>" +
+            "</tr>"
+    } else {
+        document.getElementById("end_head").innerHTML =
+            "<tr>" +
+            "<td></td>" +
+            "<td>SCORE</td>" +
+            "<td>LINES</td>" +
+            "<td>LEVEL</td>" +
+            "<td>TIME</td>" +
+            "</tr>"
     }
+
+    document.getElementById("end_body").innerHTML = load_highscores(mode, place)
 })
 
-document.getElementById("new_game2").addEventListener("click", () => {
+document.getElementById("new_game").addEventListener("click", () => {
     init_game()
     document.getElementById("game_screen").style.display = "flex"
     document.getElementById("end_screen").style.display = "none"
@@ -1774,45 +2290,62 @@ document.getElementById("main_menu2").addEventListener("click", () => {
 
 document.getElementById("highscores").addEventListener("click", () => {
     status = "highscores"
+    mode = "marathon"
     document.getElementById("highscores_screen").style.display = "block"
     document.getElementById("title_screen").style.display = "none"
+    document.getElementById("mode").innerHTML = "MARATHON"
 
-    document.getElementById("highscores_body").innerHTML = ""
-    for (let i = 0; i < 10; i++) {
-        if (highscores[i].time === 0) {
-            let str =
-                "<tr>" +
-                "<td>#" +
-                (i + 1) +
-                "</td>" +
-                "<td>-</td>" +
-                "<td>-</td>" +
-                "<td>-</td>" +
-                "<td>-</td>" +
-                "</tr>"
-            document.getElementById("highscores_body").innerHTML += str
-        } else {
-            let str =
-                "<tr>" +
-                "<td>#" +
-                (i + 1) +
-                "</td>" +
-                "<td>" +
-                format_num(highscores[i].score) +
-                "</td>" +
-                "<td>" +
-                format_num(highscores[i].lines) +
-                "</td>" +
-                "<td>" +
-                format_num(highscores[i].level) +
-                "</td>" +
-                "<td>" +
-                format_time(highscores[i].time) +
-                "</td>" +
-                "</tr>"
-            document.getElementById("highscores_body").innerHTML += str
-        }
+    document.getElementById("highscores_body").innerHTML = load_highscores(mode)
+})
+
+document.getElementById("mode").addEventListener("click", () => {
+    switch (mode) {
+        case "marathon":
+            mode = "endless"
+            document.getElementById("mode").innerHTML = "ENDLESS"
+            break
+        case "endless":
+            mode = "sprint"
+            document.getElementById("mode").innerHTML = "SPRINT"
+            break
+        case "sprint":
+            mode = "ultra"
+            document.getElementById("mode").innerHTML = "ULTRA"
+            break
+        case "ultra":
+            mode = "marathon"
+            document.getElementById("mode").innerHTML = "MARATHON"
+            break
     }
+
+    if (mode === "sprint") {
+        document.getElementById("highscores_head").innerHTML =
+            "<tr>" +
+            "<td></td>" +
+            "<td>TIME</td>" +
+            "<td>PIECES</td>" +
+            "<td>PPS</td>" +
+            "</tr>"
+    } else if (mode === "ultra") {
+        document.getElementById("highscores_head").innerHTML =
+            "<tr>" +
+            "<td></td>" +
+            "<td>SCORE</td>" +
+            "<td>LINES</td>" +
+            "<td>LEVEL</td>" +
+            "</tr>"
+    } else {
+        document.getElementById("highscores_head").innerHTML =
+            "<tr>" +
+            "<td></td>" +
+            "<td>SCORE</td>" +
+            "<td>LINES</td>" +
+            "<td>LEVEL</td>" +
+            "<td>TIME</td>" +
+            "</tr>"
+    }
+
+    document.getElementById("highscores_body").innerHTML = load_highscores(mode)
 })
 
 document.getElementById("back2").addEventListener("click", () => {
