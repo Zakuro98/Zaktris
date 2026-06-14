@@ -873,7 +873,7 @@ function spawn_next() {
     game.ground = false
     game.spun = false
     game.lock_timer = 0
-    game.lock_resets = reset_count()
+    game.lock_resets = 15
     das_cut()
 
     game.piece = {
@@ -1104,17 +1104,9 @@ function drop_row(piece, grid) {
 
 function lock_time() {
     if (game.level >= 21) {
-        return Math.max(15, 90 - game.level * 3)
+        return Math.max(5, Math.round(30 * 0.5 ** ((game.level - 20) / 5)))
     } else {
         return 30
-    }
-}
-
-function reset_count() {
-    if (game.level >= 21) {
-        return Math.max(0, 35 - game.level)
-    } else {
-        return 15
     }
 }
 
@@ -1336,7 +1328,7 @@ function tick() {
                 lock(game.piece, game.grid)
                 game.ground = false
                 game.lock_timer = 0
-                game.lock_resets = reset_count()
+                game.lock_resets = 15
             }
         }
         if (game.block_timer > 0) game.block_timer--
