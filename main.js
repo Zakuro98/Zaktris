@@ -2125,7 +2125,10 @@ function load_highscores(mode, place) {
         }
     } else if (mode === "ultra") {
         for (let i = 0; i < 10; i++) {
-            if (highscores[mode][i].time === 0) {
+            if (
+                highscores[mode][i].score === 0 &&
+                highscores[mode][i].lines === 0
+            ) {
                 let str =
                     "<tr>" +
                     "<td>#" +
